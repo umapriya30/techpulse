@@ -1,0 +1,165 @@
+// TECHPULSE database schema (PostgreSQL + Prisma).
+//
+// The MVP runs on the mock data provider (lib/provider.ts); this schema is the
+// production target. `npx prisma generate` works with no database. To use it,
+// set DATABASE_URL, run `prisma db push`, and swap in a PrismaProvider.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String           @id @default(cuid())
+  name         String
+  email        String           @unique
+  passwordHash String?
+  createdAt    DateTime         @default(now())
+  preferences  UserPreference?
+  bookmarks    Bookmark[]
+  notifications Notification[]
+}
+
+model UserPreference {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics                  String[]
+  locations               String[]
+  notificationPreferences Json
+  updatedAt               DateTime @updatedAt
+}
+
+model News {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  summary        String
+  content        String
+  imageUrl       String?
+  source         String
+  sourceUrl      String
+  category       String
+  subcategory    String?
+  tags           String[]
+  trending       Boolean  @default(false)
+  verifiedSource Boolean  @default(true)
+  publishedAt    DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([category, publishedAt])
+  @@index([trending])
+}
+
+model Event {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  title                String
+  description          String
+  about                String
+  organizer            String
+  eventType            String
+  categories           String[]
+  topics               String[]
+  mode                 String // "UK In-Person" | "Online" | "Hybrid"
+  city                 String?
+  country              String   @default("United Kingdom")
+  venue                String?
+  startDate            DateTime
+  endDate              DateTime
+  time                 String?
+  price                Int      @default(0)
+  currency             String   @default("GBP")
+  registrationRequired Boolean  @default(true)
+  websiteUrl           String
+  registrationUrl      String
+  registrationDeadline DateTime?
+  imageUrl             String?
+  verified             Boolean  @default(false)
+  featured             Boolean  @default(false)
+  speakers             Json     @default("[]")
+  schedule             Json     @default("[]")
+  createdAt            DateTime @default(now())
+
+  @@index([startDate])
+  @@index([mode, startDate])
+}
+
+model Hackathon {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  title                String
+  description          String
+  challenge            String
+  requirements         String[]
+  organizer            String
+  technologies         String[]
+  categories           String[]
+  region               String // "UK" | "Online" | "Europe" | "Global"
+  mode                 String // "Online" | "In-Person" | "Hybrid"
+  city                 String?
+  startDate            DateTime
+  endDate              DateTime
+  registrationDeadline DateTime
+  durationHours        Int
+  prizePool            Int
+  currency             String   @default("GBP")
+  prizes               Json     @default("[]")
+  keyDates             Json     @default("[]")
+  teamMin              Int      @default(1)
+  teamMax              Int      @default(4)
+  difficulty           String   @default("Intermediate")
+  websiteUrl           String
+  registrationUrl      String
+  imageUrl             String?
+  verified             Boolean  @default(false)
+  featured             Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  @@index([registrationDeadline])
+  @@index([region])
+}
+
+model Bookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentType String // "news" | "event" | "hackathon"
+  contentId   String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, contentType, contentId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Submission {
+  id              String   @id @default(cuid())
+  kind            String // "event" | "hackathon"
+  payload         Json
+  status          String   @default("pending") // pending | approved | rejected
+  contactEmail    String
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
