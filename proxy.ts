@@ -17,7 +17,41 @@ function rateLimit(key: string) {
   return { ok: entry.count <= MAX_REQ, remaining: Math.max(0, MAX_REQ - entry.count) };
 }
 
+// HTTP Basic Auth for the admin dashboard (/admin) and its API routes
+// (/api/admin/*). Credentials come from ADMIN_USERNAME / ADMIN_PASSWORD env
+// vars — never hard-coded in source, same "no secrets in code" policy as
+// CRON_SECRET. Fails closed: if the env vars aren't configured, the route
+// 503s rather than opening up.
+function checkAdminAuth(req: NextRequest): NextResponse | null {
+  if (!req.nextUrl.pathname.startsWith("/admin") && !req.nextUrl.pathname.startsWith("/api/admin")) {
+    return null;
+  }
+
+  const user = process.env.ADMIN_USERNAME;
+  const pass = process.env.ADMIN_PASSWORD;
+  if (!user || !pass) {
+    return new NextResponse("Admin login is not configured.", { status: 503 });
+  }
+
+  const auth = req.headers.get("authorization");
+  if (auth?.startsWith("Basic ")) {
+    const decoded = atob(auth.slice(6));
+    const sep = decoded.indexOf(":");
+    const reqUser = sep === -1 ? decoded : decoded.slice(0, sep);
+    const reqPass = sep === -1 ? "" : decoded.slice(sep + 1);
+    if (reqUser === user && reqPass === pass) return null; // authenticated, continue
+  }
+
+  return new NextResponse("Authentication required.", {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="TechPulse Admin"' },
+  });
+}
+
 export function proxy(req: NextRequest) {
+  const authFailure = checkAdminAuth(req);
+  if (authFailure) return authFailure;
+
   const res = NextResponse.next();
 
   res.headers.set("X-Content-Type-Options", "nosniff");
