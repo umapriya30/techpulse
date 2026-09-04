@@ -9,6 +9,7 @@ import {
   Menu,
   Newspaper,
   Search as SearchIcon,
+  Target,
   Trophy,
   Ticket,
   X,
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/news", label: "Tech News", icon: Newspaper },
   { href: "/events", label: "Events", icon: Ticket },
   { href: "/hackathons", label: "Hackathons", icon: Trophy },
+  { href: "/hunt", label: "Hunt", icon: Target },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/about", label: "About", icon: Home },
 ];
@@ -32,8 +34,9 @@ const NAV = [
 const MOBILE_NAV = [
   { href: "/", label: "Home", icon: Home },
   { href: "/news", label: "News", icon: Newspaper },
-  { href: "/events", label: "Events", icon: Ticket },
+  { href: "/hunt", label: "Hunt", icon: Target },
   { href: "/hackathons", label: "Hackathons", icon: Trophy },
+  { href: "/events", label: "Events", icon: Ticket },
   { href: "/saved", label: "Saved", icon: Bookmark },
 ];
 

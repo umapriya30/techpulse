@@ -163,3 +163,72 @@ model NewsletterSubscriber {
   email     String   @unique
   createdAt DateTime @default(now())
 }
+
+// -----------------------------------------------------------------------------
+// Hunt — unified opportunity discovery (Phase 1: Awards + Volunteering).
+// Unlike News/Event/Hackathon above (which stay on the live-fetch-and-cache
+// MockProvider/LiveProvider pattern — see lib/provider.ts), Hunt is the first
+// section actually backed by this database. See lib/hunt/ for the adapter +
+// ingestion pipeline that reads/writes these two models.
+// -----------------------------------------------------------------------------
+
+model Opportunity {
+  id                   String    @id @default(cuid())
+  slug                 String    @unique
+  title                String
+  type                 String // "award" | "volunteering" (Phase 1); more HuntCategory values reserved for later phases
+  category             String[] // shared Category tags (AI, Data, LLM, …)
+  description          String
+  organisation         String
+  organisationLogo     String?
+  website              String
+  applicationUrl       String?
+  sourceUrl            String
+  sourceName           String
+  sourceType           String // "official" | "manual" | "api" | "aggregator" | "user_submission"
+  location             String?
+  country              String?
+  city                 String?
+  latitude             Float?
+  longitude            Float?
+  remote               Boolean   @default(false)
+  hybrid               Boolean   @default(false)
+  startDate            DateTime?
+  endDate              DateTime?
+  deadline             DateTime?
+  price                Int?
+  free                 Boolean   @default(true)
+  prize                String?
+  eligibility          String?
+  studentEligible      Boolean   @default(false)
+  graduateEligible     Boolean   @default(false)
+  professionalEligible Boolean   @default(false)
+  founderEligible      Boolean   @default(false)
+  skills               String[]
+  technologies         String[]
+  industry             String?
+  tags                 String[]
+  image                String?
+  status               String    @default("published") // draft | published | pending | needs_review | expired | removed
+  verificationStatus   String    @default("needs_review") // verified | needs_review | expired | removed
+  lastVerifiedAt       DateTime?
+  discoveredAt         DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  duplicateOf          String?
+  relevanceScore       Float?    @default(0)
+
+  @@index([type, deadline])
+  @@index([status, verificationStatus])
+}
+
+model DataSource {
+  id           String    @id @default(cuid())
+  name         String    @unique
+  category     String // "awards" | "volunteering" | … (HuntCategory)
+  type         String // "official" | "manual" | "api" | "aggregator"
+  enabled      Boolean   @default(true)
+  lastSyncAt   DateTime?
+  recordCount  Int       @default(0)
+  errorCount   Int       @default(0)
+  lastError    String?
+}

@@ -1,4 +1,4 @@
-import { BadgeCheck, Globe2, Info, MapPin } from "lucide-react";
+import { BadgeCheck, Ban, Clock, Globe2, Info, MapPin, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui";
 import { cn, deadlineState } from "@/lib/utils";
 import type { LocationMode } from "@/lib/types";
@@ -126,4 +126,46 @@ export function UnverifiedBadge({ className }: { className?: string }) {
       Unverified listing
     </span>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Hunt's 4-state verification system (§18): Verified / Needs Review /        */
+/*  Expired / Removed. VerifiedBadge above covers "Verified".                 */
+/* -------------------------------------------------------------------------- */
+
+export function NeedsReviewBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="amber" className={className} title="Requires manual verification against the source">
+      <TriangleAlert className="h-3 w-3" /> Needs Review
+    </Badge>
+  );
+}
+
+export function ExpiredHuntBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="neutral" className={className} title="Deadline or date has passed">
+      <Clock className="h-3 w-3" /> Expired
+    </Badge>
+  );
+}
+
+export function RemovedBadge({ className }: { className?: string }) {
+  return (
+    <Badge tone="red" className={className} title="Source no longer available">
+      <Ban className="h-3 w-3" /> Removed
+    </Badge>
+  );
+}
+
+export function VerificationStatusBadge({
+  status,
+  className,
+}: {
+  status: "verified" | "needs_review" | "expired" | "removed";
+  className?: string;
+}) {
+  if (status === "verified") return <VerifiedBadge className={className} />;
+  if (status === "expired") return <ExpiredHuntBadge className={className} />;
+  if (status === "removed") return <RemovedBadge className={className} />;
+  return <NeedsReviewBadge className={className} />;
 }

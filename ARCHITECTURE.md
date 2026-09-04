@@ -4,7 +4,10 @@ A UK-focused discovery platform for tech news, events and AI hackathons, built
 with Next.js 16 (App Router, Turbopack), React 19, TypeScript and Tailwind CSS v4.
 Data is live (public RSS/APIs, no keys), with a bundled snapshot as fallback.
 As of 2026-09-03 it also exposes a **WebMCP** tool layer so AI agents can use
-the site directly (see [WebMCP layer](#webmcp-layer) below).
+the site directly (see [WebMCP layer](#webmcp-layer) below). As of 2026-09-04
+it also has **Hunt**, a unified opportunity-discovery section (awards,
+volunteering and more) that is the first part of TechPulse actually backed by
+Postgres — see [§11](#11-hunt--unified-opportunity-discovery).
 
 Live: https://techpulse-uk.vercel.app
 
@@ -18,7 +21,7 @@ Live: https://techpulse-uk.vercel.app
 | Styling    | Tailwind CSS v4, `lucide-react` icons, `next-themes` (light/dark) |
 | Validation | Zod |
 | Parsing    | `fast-xml-parser` (RSS/Atom) |
-| Data       | Live public sources by default; Prisma schema written for a future Postgres backend (not wired — MVP runs on the live/mock provider) |
+| Data       | News/Events/Hackathons: live public sources, `unstable_cache`, Prisma schema written but unwired. Hunt: Postgres via Prisma (`lib/prisma.ts`) — see §11. |
 | Hosting    | Vercel (`ministryof-wizard/techpulse-uk`) |
 
 No API keys anywhere — `.env.local` only holds Vercel's auto OIDC token.
@@ -146,10 +149,11 @@ footer carries a full "independent tool, not affiliated" disclaimer.
 | `/news`, `/news/[slug]` | News listing (filters: category/topic/format/trending/time) + detail. |
 | `/events`, `/events/[slug]` | Events listing (filters: category/type/location/format/date/price) + detail. |
 | `/hackathons`, `/hackathons/[slug]` | Hackathons listing (filters: technology/region/mode/deadline/prize) + detail. |
-| `/search` | Global search across all three content types. |
-| `/saved` | The current browser's bookmarked items. |
-| `/submit` | Community submission form (news/event/hackathon suggestions). |
-| `/about`, `/admin` | Static about page; lightweight admin/ingestion preview panel. |
+| `/hunt`, `/hunt/[category]`, `/hunt/[category]/[slug]` | Unified opportunity discovery — awards, volunteering (live categories) plus 8 more on the roadmap. See §11. |
+| `/search` | Global search across all four content types (news/events/hackathons/Hunt). |
+| `/saved` | The current browser's bookmarked items, including Hunt opportunities. |
+| `/submit` | Community submission form (event/hackathon/award/volunteering suggestions). |
+| `/about`, `/admin` | Static about page; admin panel (ingestion preview + Hunt Data Sources/Needs Review tabs). |
 
 Detail routes use `dynamicParams=false` (so unknown slugs 404) with
 `revalidate=1800` on `[slug]` pages.
@@ -168,8 +172,16 @@ Detail routes use `dynamicParams=false` (so unknown slugs 404) with
 | `/api/assistant` | POST | `lib/assistant/answer.ts` |
 | `/api/bookmarks` | POST/DELETE | Server contract for a future signed-in bookmarks backend (bookmarks themselves are client-side today) |
 | `/api/newsletter` | POST | Newsletter signup |
-| `/api/submissions` | POST | Community submission form |
+| `/api/submissions` | POST | Community submission form (award/volunteering kinds also run `ingestSingleOpportunity`) |
 | `/api/ingest/preview` | GET | Admin preview of the news ingestion pipeline |
+| `/api/hunt` | GET | `queryOpportunities` (+ `paginate`) |
+| `/api/hunt/[category]/[slug]` | GET | `getOpportunity` |
+| `/api/hunt/resolve/[slug]` | GET | Slug-only lookup, used by the `open_item` WebMCP tool |
+| `/api/hunt/sync` | GET/POST | `runHuntSync` — protected by `CRON_SECRET`; also Vercel Cron's daily target (`vercel.json`) |
+| `/api/admin/hunt-sync` | POST | Same sync, unauthenticated server-side call for the admin "Sync now" button |
+| `/api/admin/sources/[id]` | PATCH | Enable/disable a `DataSource` |
+| `/api/admin/opportunities` | GET/POST | Needs-review queue / manual "Add Opportunity" |
+| `/api/admin/opportunities/[id]` | PATCH | Approve (publish) or reject a needs-review row |
 
 ---
 
@@ -287,3 +299,93 @@ npm run lint         # ESLint
 `TECHPULSE_LIVE=off` forces the bundled snapshot dataset (no live fetches).
 `TECHPULSE_EVENTBRITE=on` opts back into the Eventbrite source (off by
 default — see §3).
+
+---
+
+## 11. Hunt — unified opportunity discovery
+
+Added 2026-09-04. Hunt is a second, independent content pillar — "your
+personal radar for everything happening in tech" beyond news/events/
+hackathons: awards, volunteering, and (on the roadmap) product launches,
+speaking/judging/mentoring opportunities, startup competitions and grants.
+Unlike everything above, **Hunt is the first section actually backed by a
+database** rather than the live-fetch-and-cache `DataProvider` pattern —
+source data is ingested and persisted, not re-fetched per request.
+
+### 11.1 Why a different pattern
+
+News/Events/Hackathons work because their sources are live public APIs/feeds
+that are cheap to re-fetch and cache for 30 minutes. Hunt's Phase-1 categories
+(Awards, Volunteering) don't have that: per the sourcing rules below, an
+aggregator is discovery-only and the *official site* is the source of truth,
+so there's no compliant zero-key live feed to poll. Instead, Hunt runs a real
+ingestion pipeline against a small set of hand-verified sources and stores
+the result, so the admin dashboard's "last synced"/"records"/"errors" are
+real, not simulated.
+
+### 11.2 Files (`lib/hunt/`)
+
+| File | Role |
+|---|---|
+| `types.ts` | `HuntCategory` (10 values; `ACTIVE_HUNT_CATEGORIES` = `["award","volunteering"]` today), `HUNT_CATEGORY_LABEL`, `RawOpportunity` (adapter-facing) and `Opportunity` (normalised, mirrors the Prisma model) interfaces. |
+| `adapter.ts` | `SourceAdapter` interface (`name`, `category`, `type`, `enabled`, `fetch/normalize/validate/getSourceUrl`) — every source, in any category, implements this. |
+| `sources/manual-awards.ts`, `sources/manual-volunteering.ts` | Phase-1 adapters: a small list of real organisations/programmes, each hand-verified against its official page (URLs, and dates where the official site stated one — never guessed). `sourceType: "manual"`. |
+| `validate.ts` | Required-field/URL/date sanity checks — failures route to `needs_review`, never silently dropped or auto-published. |
+| `dedupe.ts` | Exact/normalised source-URL match → organisation+title similarity → title-only similarity (Jaccard over tokens). The first-seen record wins; repeats are skipped. |
+| `pipeline.ts` | `runHuntSync(onlySource?)` — orchestrates fetch → normalise → dedupe → validate → AI-enrich → upsert per adapter, and updates that adapter's `DataSource` row. `ingestSingleOpportunity()` — the single-item path for admin manual-adds and accepted user submissions. |
+| `queries.ts` | `queryOpportunities(filter)` / `getOpportunity(slug)` / `listNeedsReview()` — Hunt's read side, querying Postgres directly (the DB-backed equivalent of `lib/queries.ts`'s `queryEvents`/`queryHackathons`). |
+
+`lib/prisma.ts` is the one new low-level primitive: a cached `PrismaClient`
+singleton, used only by Hunt today.
+
+### 11.3 Data model (`prisma/schema.prisma`)
+
+- **`Opportunity`** — the unified schema (title, type, category[], location
+  fields, dates, eligibility flags, `status`, `verificationStatus`,
+  `lastVerifiedAt`, `duplicateOf`, `relevanceScore`, …).
+- **`DataSource`** — one row per adapter (`name`, `category`, `type`,
+  `enabled`, `lastSyncAt`, `recordCount`, `errorCount`, `lastError`). Created
+  automatically by `runHuntSync` on a source's first run — no separate seed
+  step needed.
+
+Verification states (`VerificationStatusBadge` in `components/badges.tsx`):
+✓ Verified · ⚠ Needs Review · 🔴 Expired · ❌ Removed.
+
+### 11.4 Sync
+
+- `POST/GET /api/hunt/sync` — checks `Authorization: Bearer $CRON_SECRET`,
+  calls `runHuntSync()`. `vercel.json` points a daily Vercel Cron at it
+  (Vercel auto-attaches that header when `CRON_SECRET` is set).
+- `POST /api/admin/hunt-sync` — same call, used by the admin panel's
+  "Sync now" buttons (per-source and "Sync all"), no secret needed since it
+  never leaves the server.
+- `runHuntSync` checks each source's **`DataSource.enabled`** flag (not the
+  adapter's hardcoded default) once that row exists, so the admin
+  enable/disable toggle actually takes effect on the next sync.
+
+### 11.5 AI enrichment & cross-cutting hooks
+
+- `lib/ai/provider.ts`'s heuristic `LlmProvider` gained `classifyOpportunity()`
+  — same zero-API-key regex approach as `classifyArticle`, deriving
+  category/tags/eligibility from title+description text only (never
+  inventing facts).
+- `ContentType` (`lib/types.ts`) gained `"opportunity"`, which is all that was
+  needed to make `useStore()` bookmarks, the `/saved` dashboard, and the
+  WebMCP bridge work for Hunt with no further changes to those systems.
+- `globalSearch` (`lib/queries.ts`) also queries `queryOpportunities`,
+  degrading to empty (not failing) if the database isn't reachable — same
+  fallback philosophy as `lib/provider.ts`.
+- WebMCP gained `search_opportunities`; `save_item`/`remove_saved_item`/
+  `open_item` now accept `type: "opportunity"` (`open_item` resolves the
+  right `/hunt/<category>/<slug>` path via `/api/hunt/resolve/[slug]`, since
+  a bare `ContentType` doesn't carry the `HuntCategory`).
+
+### 11.6 Roadmap (not built in Phase 1)
+
+Product Launch Radar (incl. a gated `ProductHuntSourceAdapter` — Product
+Hunt's API disallows commercial use without a licensing arrangement),
+Speaking/Judging/Mentoring/Startup-Competition adapters, a duplicate
+source-count UI ("Found on: ✓ Official ✓ Eventbrite ✓ University"), real
+AI match-score personalisation (the `relevanceScore` column already exists),
+and a calendar/reminders/opportunity tracker. Documented at the top of
+`lib/hunt/pipeline.ts` too.

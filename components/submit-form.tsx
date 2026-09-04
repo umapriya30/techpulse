@@ -6,12 +6,15 @@ import { Check, Loader2 } from "lucide-react";
 import { buttonClass } from "@/components/ui";
 import { CATEGORIES, EVENT_TYPES } from "@/lib/types";
 
-type Kind = "event" | "hackathon";
+type Kind = "event" | "hackathon" | "award" | "volunteering";
+const KINDS: Kind[] = ["event", "hackathon", "award", "volunteering"];
 
 export function SubmitForm() {
   const params = useSearchParams();
-  const initialKind: Kind = params.get("type") === "hackathon" ? "hackathon" : "event";
+  const requested = params.get("type") as Kind | null;
+  const initialKind: Kind = requested && KINDS.includes(requested) ? requested : "event";
   const [kind, setKind] = useState<Kind>(initialKind);
+  const isHunt = kind === "award" || kind === "volunteering";
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState("");
   const [ref, setRef] = useState("");
@@ -54,8 +57,8 @@ export function SubmitForm() {
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-5">
-      <div className="flex gap-2">
-        {(["event", "hackathon"] as Kind[]).map((k) => (
+      <div className="flex flex-wrap gap-2">
+        {KINDS.map((k) => (
           <button
             key={k}
             type="button"
@@ -71,27 +74,31 @@ export function SubmitForm() {
         ))}
       </div>
 
-      <Field label="Name" name="name" required placeholder={`${kind === "event" ? "AI & Data Summit London 2026" : "Build With AI Hackathon"}`} />
+      <Field
+        label="Name"
+        name="name"
+        required
+        placeholder={kind === "event" ? "AI & Data Summit London 2026" : kind === "hackathon" ? "Build With AI Hackathon" : kind === "award" ? "UK AI Innovation Award" : "STEM Ambassador Programme"}
+      />
       <Field label="Organiser" name="organizer" required />
       <Field label="Description" name="description" required textarea placeholder="At least 20 characters." />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <SelectField label="Category" name="category" options={CATEGORIES} required />
-        {kind === "event" ? (
-          <SelectField label="Event type" name="eventType" options={EVENT_TYPES} />
-        ) : (
-          <SelectField
-            label="Format"
-            name="mode"
-            options={["Online", "In-Person", "Hybrid"]}
-            required
-          />
+        {kind === "event" && <SelectField label="Event type" name="eventType" options={EVENT_TYPES} />}
+        {kind === "hackathon" && (
+          <SelectField label="Format" name="mode" options={["Online", "In-Person", "Hybrid"]} required />
         )}
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Date" name="date" type="date" required />
-        <Field label="Time (optional)" name="time" placeholder="09:00 – 17:00 BST" />
+        <Field
+          label={isHunt ? "Deadline (optional)" : "Date"}
+          name="date"
+          type="date"
+          required={!isHunt}
+        />
+        {!isHunt && <Field label="Time (optional)" name="time" placeholder="09:00 – 17:00 BST" />}
       </div>
 
       {kind === "event" && (
@@ -106,9 +113,17 @@ export function SubmitForm() {
         </div>
       )}
 
+      {isHunt && <Field label="Location (optional)" name="location" placeholder="Remote, UK, London…" />}
+
       <Field label="Price (optional)" name="price" placeholder="Free, £25, £89…" />
       <Field label="Website URL" name="website" type="url" required placeholder="https://…" />
-      <Field label="Registration URL" name="registrationUrl" type="url" required placeholder="https://…" />
+      <Field
+        label={isHunt ? "Application / registration URL (optional)" : "Registration URL"}
+        name="registrationUrl"
+        type="url"
+        required={!isHunt}
+        placeholder="https://…"
+      />
       <Field label="Contact email" name="contactEmail" type="email" required />
 
       {error && <p className="text-sm text-danger">{error}</p>}

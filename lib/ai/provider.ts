@@ -25,9 +25,29 @@ export interface ClassifyResult {
   confidence: number;
 }
 
+export interface ClassifyOpportunityInput {
+  title: string;
+  description: string;
+  /** HuntCategory as a plain string, to avoid a lib/ai -> lib/hunt import cycle. */
+  type: string;
+}
+
+export interface ClassifyOpportunityResult {
+  category: Category[];
+  tags: string[];
+  /** Text-derived, not invented — only set true when the source text says so. */
+  eligibilityGuess: {
+    studentEligible: boolean;
+    graduateEligible: boolean;
+    professionalEligible: boolean;
+    founderEligible: boolean;
+  };
+}
+
 export interface LlmProvider {
   name: string;
   classifyArticle(input: ClassifyInput): Promise<ClassifyResult>;
+  classifyOpportunity(input: ClassifyOpportunityInput): Promise<ClassifyOpportunityResult>;
 }
 
 /* --------------------- Heuristic (no-API) provider --------------------- */
@@ -107,6 +127,30 @@ class HeuristicLlm implements LlmProvider {
       summary: firstSentences || input.title,
       trending,
       confidence: Math.min(1, 0.4 + bestScore * 0.2),
+    };
+  }
+
+  async classifyOpportunity(input: ClassifyOpportunityInput): Promise<ClassifyOpportunityResult> {
+    const text = `${input.title}\n${input.description}`;
+
+    const categories = new Set<Category>();
+    for (const rule of RULES) {
+      if (rule.patterns.some((re) => re.test(text))) categories.add(rule.category);
+    }
+    if (categories.size === 0) categories.add("Software");
+
+    const tags = new Set<string>();
+    for (const [re, tag] of TAG_PATTERNS) if (re.test(text)) tags.add(tag);
+
+    return {
+      category: [...categories].slice(0, 3),
+      tags: [...tags].slice(0, 6),
+      eligibilityGuess: {
+        studentEligible: /\bstudents?\b|undergrad|\buniversity\b/i.test(text),
+        graduateEligible: /\bgraduates?\b|early[- ]career/i.test(text),
+        professionalEligible: /\bprofessionals?\b|\bindustry\b|working/i.test(text),
+        founderEligible: /\bfounders?\b|startup founder|entrepreneur/i.test(text),
+      },
     };
   }
 }

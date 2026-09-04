@@ -28,6 +28,9 @@ const PATH: Record<ContentType, string> = {
   news: "/news",
   event: "/events",
   hackathon: "/hackathons",
+  // Unused directly — a HuntCategory segment sits between /hunt and the slug,
+  // so open_item resolves opportunity hrefs via /api/hunt/resolve instead.
+  opportunity: "/hunt",
 };
 
 function text(payload: unknown): string {
@@ -86,6 +89,21 @@ interface RawHackathon {
   registrationDeadline: string;
   difficulty: string;
 }
+interface RawOpportunity {
+  slug: string;
+  title: string;
+  type: string;
+  category: string[];
+  description: string;
+  organisation: string;
+  city: string | null;
+  country: string | null;
+  remote: boolean;
+  deadline: string | null;
+  free: boolean;
+  prize: string | null;
+  verificationStatus: string;
+}
 
 const trimNews = (n: RawNews) => ({
   slug: n.slug,
@@ -121,6 +139,21 @@ const trimHackathon = (h: RawHackathon) => ({
   prize: h.prizePool ? `${h.currency} ${h.prizePool.toLocaleString()}` : "No cash prize",
   registrationDeadline: h.registrationDeadline,
   difficulty: h.difficulty,
+});
+
+const trimOpportunity = (o: RawOpportunity) => ({
+  slug: o.slug,
+  url: `/hunt/${o.type}/${o.slug}`,
+  title: o.title,
+  type: o.type,
+  category: o.category,
+  description: o.description,
+  organisation: o.organisation,
+  location: o.remote ? "Remote" : o.city ?? o.country ?? "Unspecified",
+  deadline: o.deadline,
+  free: o.free,
+  prize: o.prize,
+  verification: o.verificationStatus,
 });
 
 /* -------------------------------------------------------------------------- */
@@ -249,15 +282,55 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
     },
 
     {
+      name: "search_opportunities",
+      description:
+        "Search TECHPULSE Hunt — awards, volunteering and other tech opportunities beyond news/events/hackathons " +
+        "(more categories are on the roadmap). Use for 'tech awards I can enter' or 'volunteering for developers'.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Free-text search." },
+          type: { type: "string", enum: ["award", "volunteering"], description: "Hunt category." },
+          location: { type: "string", description: "City, country, 'remote' or 'hybrid'." },
+          deadline: { type: "string", enum: ["soon", "week", "month", "future", "all"] },
+          free: { type: "boolean", description: "Only free-to-enter/apply opportunities." },
+          eligibility: { type: "string", enum: ["student", "graduate", "professional", "founder"] },
+          limit: { type: "number", description: "Max results, default 8, max 25." },
+        },
+      },
+      annotations: { readOnlyHint: true },
+      execute: async ({ query, type, location, deadline, free, eligibility, limit }, { signal }) => {
+        const n = Math.min(Number(limit) || 8, 25);
+        const data = await getJSON<{ items: RawOpportunity[]; total: number }>(
+          `/api/hunt${qs({
+            q: query as string | undefined,
+            type: type as string | undefined,
+            location: location as string | undefined,
+            deadline: deadline as string | undefined,
+            free: free as boolean | undefined,
+            eligibility: eligibility as string | undefined,
+            perPage: n,
+          })}`,
+          signal,
+        );
+        return text({ total: data.total, results: data.items.slice(0, n).map(trimOpportunity) });
+      },
+    },
+
+    {
       name: "global_search",
       description:
-        "Search across everything on TECHPULSE (news, events and hackathons) at once. Good first tool for a " +
-        "vague query like 'anything about AI agents happening soon'.",
+        "Search across everything on TECHPULSE (news, events, hackathons and Hunt opportunities) at once. Good " +
+        "first tool for a vague query like 'anything about AI agents happening soon'.",
       inputSchema: {
         type: "object",
         properties: {
           query: { type: "string" },
-          type: { type: "string", enum: ["news", "event", "hackathon"], description: "Optionally restrict to one type." },
+          type: {
+            type: "string",
+            enum: ["news", "event", "hackathon", "opportunity"],
+            description: "Optionally restrict to one type.",
+          },
           limit: { type: "number", description: "Max results, default 10, max 30." },
         },
         required: ["query"],
@@ -313,7 +386,7 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
 
     {
       name: "list_saved_items",
-      description: "List the items (news/events/hackathons) the current visitor has saved/bookmarked on this device.",
+      description: "List the items (news/events/hackathons/Hunt opportunities) the current visitor has saved/bookmarked on this device.",
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
       execute: async () => text({ saved: bridge.listSaved() }),
@@ -322,12 +395,12 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
     {
       name: "save_item",
       description:
-        "Save (bookmark) a news article, event or hackathon for the current visitor, by its content type and slug " +
-        "(get the slug from a search tool's `slug` field first).",
+        "Save (bookmark) a news article, event, hackathon or Hunt opportunity for the current visitor, by its " +
+        "content type and slug (get the slug from a search tool's `slug` field first).",
       inputSchema: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["news", "event", "hackathon"] },
+          type: { type: "string", enum: ["news", "event", "hackathon", "opportunity"] },
           slug: { type: "string" },
         },
         required: ["type", "slug"],
@@ -347,7 +420,7 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
       inputSchema: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["news", "event", "hackathon"] },
+          type: { type: "string", enum: ["news", "event", "hackathon", "opportunity"] },
           slug: { type: "string" },
         },
         required: ["type", "slug"],
@@ -364,13 +437,13 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
     {
       name: "open_item",
       description:
-        "Navigate the visitor's browser tab to a news article, event or hackathon's detail page, by content " +
-        "type and slug. Use this so the human watching can see what the agent found, or to hand off a signup flow " +
-        "(e.g. hackathon registration) that needs a human to complete.",
+        "Navigate the visitor's browser tab to a news article, event, hackathon or Hunt opportunity's detail " +
+        "page, by content type and slug. Use this so the human watching can see what the agent found, or to hand " +
+        "off a signup flow (e.g. hackathon registration) that needs a human to complete.",
       inputSchema: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["news", "event", "hackathon"] },
+          type: { type: "string", enum: ["news", "event", "hackathon", "opportunity"] },
           slug: { type: "string" },
         },
         required: ["type", "slug"],
@@ -378,7 +451,18 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
       annotations: { readOnlyHint: false, destructiveHint: false },
       execute: async ({ type, slug }) => {
         const t = type as ContentType;
-        const href = `${PATH[t]}/${String(slug)}`;
+        const s = String(slug);
+        let href: string;
+        if (t === "opportunity") {
+          // A HuntCategory segment sits between /hunt and the slug — resolve it first.
+          const res = await fetch(`/api/hunt/resolve/${encodeURIComponent(s)}`, {
+            headers: { accept: "application/json" },
+          });
+          if (!res.ok) throw new Error(`Could not find opportunity "${s}"`);
+          ({ href } = (await res.json()) as { href: string });
+        } else {
+          href = `${PATH[t]}/${s}`;
+        }
         bridge.navigate(href);
         return `Opened ${href}`;
       },

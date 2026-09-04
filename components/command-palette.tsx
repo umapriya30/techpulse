@@ -14,6 +14,7 @@ import {
   Search,
   Send,
   Sun,
+  Target,
   Ticket,
   Trophy,
 } from "lucide-react";
@@ -53,6 +54,7 @@ export function CommandPalette() {
       { id: "news", label: "Tech News", icon: <Newspaper className="h-4 w-4" />, run: () => go("/news"), group: "Go to" },
       { id: "events", label: "Events", icon: <Ticket className="h-4 w-4" />, run: () => go("/events"), group: "Go to" },
       { id: "hack", label: "Hackathons", icon: <Trophy className="h-4 w-4" />, run: () => go("/hackathons"), group: "Go to" },
+      { id: "hunt", label: "Hunt — awards, volunteering & more", icon: <Target className="h-4 w-4" />, run: () => go("/hunt"), group: "Go to" },
       { id: "saved", label: "My TechPulse", icon: <Bookmark className="h-4 w-4" />, run: () => go("/saved"), group: "Go to" },
       { id: "submit", label: "Submit an event or hackathon", icon: <Send className="h-4 w-4" />, run: () => go("/submit"), group: "Go to" },
       { id: "t-ai", label: "AI news", hint: "topic", icon: <ArrowRight className="h-4 w-4" />, run: () => go("/news?topic=Artificial%20Intelligence"), group: "Topics" },
@@ -123,12 +125,14 @@ export function CommandPalette() {
       results.map((r) => {
         const base =
           r.type === "news" ? "/news" : r.type === "event" ? "/events" : "/hackathons";
+        const emoji =
+          r.type === "news" ? "📰" : r.type === "event" ? "🎤" : r.type === "opportunity" ? "🎯" : "🏆";
         return {
           id: `${r.type}-${r.id}`,
           label: r.title,
           hint: r.meta,
-          icon: <span className="text-sm">{r.type === "news" ? "📰" : r.type === "event" ? "🎤" : "🏆"}</span>,
-          run: () => go(`${base}/${r.slug}`),
+          icon: <span className="text-sm">{emoji}</span>,
+          run: () => go(r.href ?? `${base}/${r.slug}`),
           group: "Results",
         };
       }),

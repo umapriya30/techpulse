@@ -19,6 +19,7 @@ const TABS = [
   { key: "news", label: "📰 News" },
   { key: "event", label: "🎤 Events" },
   { key: "hackathon", label: "🏆 Hackathons" },
+  { key: "opportunity", label: "🎯 Hunt" },
 ];
 
 function hrefFor(type: string, slug: string) {
@@ -26,6 +27,13 @@ function hrefFor(type: string, slug: string) {
     type === "news" ? "/news" : type === "event" ? "/events" : "/hackathons";
   return `${base}/${slug}`;
 }
+
+const TYPE_EMOJI: Record<string, string> = {
+  news: "📰",
+  event: "🎤",
+  hackathon: "🏆",
+  opportunity: "🎯",
+};
 
 export default async function SearchPage({
   searchParams,
@@ -42,6 +50,7 @@ export default async function SearchPage({
     news: all.filter((r) => r.type === "news").length,
     event: all.filter((r) => r.type === "event").length,
     hackathon: all.filter((r) => r.type === "hackathon").length,
+    opportunity: all.filter((r) => r.type === "opportunity").length,
   };
   const results = tab === "all" ? all : all.filter((r) => r.type === tab);
 
@@ -104,15 +113,11 @@ export default async function SearchPage({
               {results.map((r) => (
                 <li key={`${r.type}-${r.id}`}>
                   <Link
-                    href={hrefFor(r.type, r.slug)}
+                    href={r.href ?? hrefFor(r.type, r.slug)}
                     className="card-hover flex gap-4 rounded-xl border border-border bg-surface p-4"
                   >
                     <span aria-hidden className="text-2xl">
-                      {r.type === "news"
-                        ? "📰"
-                        : r.type === "event"
-                          ? "🎤"
-                          : "🏆"}
+                      {TYPE_EMOJI[r.type] ?? "🔍"}
                     </span>
                     <span className="min-w-0">
                       <span className="block font-semibold">{r.title}</span>

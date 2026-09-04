@@ -1,21 +1,37 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ingestSingleOpportunity } from "@/lib/hunt/pipeline";
 
-const schema = z.object({
-  kind: z.enum(["event", "hackathon"]),
+const baseSchema = z.object({
+  kind: z.enum(["event", "hackathon", "award", "volunteering"]),
   name: z.string().min(3, "Name is too short."),
   organizer: z.string().min(2, "Organiser is required."),
   description: z.string().min(20, "Please add a longer description."),
   category: z.string().min(1),
   eventType: z.string().optional(),
-  date: z.string().min(1, "Date is required."),
+  date: z.string().optional(),
   time: z.string().optional(),
   location: z.string().optional(),
-  mode: z.enum(["UK In-Person", "Online", "Hybrid", "In-Person"]),
+  mode: z.enum(["UK In-Person", "Online", "Hybrid", "In-Person"]).optional(),
   price: z.string().optional(),
   website: z.string().url("Website must be a valid URL."),
-  registrationUrl: z.string().url("Registration URL must be a valid URL."),
+  registrationUrl: z.string().url("Registration/application URL must be a valid URL.").optional().or(z.literal("")),
   contactEmail: z.string().email("Enter a valid contact email."),
+});
+
+// Event/hackathon submissions keep their original required fields; award/volunteering
+// (Hunt kinds) relax date/mode/registrationUrl since those don't always apply.
+const schema = baseSchema.superRefine((data, ctx) => {
+  const isEventOrHackathon = data.kind === "event" || data.kind === "hackathon";
+  if (isEventOrHackathon && !data.date) {
+    ctx.addIssue({ code: "custom", message: "Date is required.", path: ["date"] });
+  }
+  if (isEventOrHackathon && !data.mode) {
+    ctx.addIssue({ code: "custom", message: "Format is required.", path: ["mode"] });
+  }
+  if (isEventOrHackathon && !data.registrationUrl) {
+    ctx.addIssue({ code: "custom", message: "Registration URL is required.", path: ["registrationUrl"] });
+  }
 });
 
 // MVP: submissions go to an in-memory review queue. In production this writes
@@ -45,6 +61,33 @@ export async function POST(req: Request) {
     submittedAt: new Date().toISOString(),
   };
   queue.push(record);
+
+  // Hunt kinds also run through the real ingestion pipeline (validate ->
+  // AI-enrich -> store as needs_review) so they actually land in the admin
+  // "Needs Review" queue, never auto-published — per spec §25.
+  if (parsed.data.kind === "award" || parsed.data.kind === "volunteering") {
+    try {
+      await ingestSingleOpportunity(
+        {
+          title: parsed.data.name,
+          type: parsed.data.kind,
+          description: parsed.data.description,
+          organisation: parsed.data.organizer,
+          website: parsed.data.website,
+          applicationUrl: parsed.data.registrationUrl || undefined,
+          sourceUrl: parsed.data.website,
+          location: parsed.data.location || undefined,
+          deadline: parsed.data.date || undefined,
+        },
+        "user-submission",
+        "user_submission",
+      );
+    } catch (err) {
+      // Don't fail the whole submission if Hunt's database isn't configured
+      // yet — it's still queued above for admin visibility.
+      console.warn("[submissions] Hunt ingest failed:", err instanceof Error ? err.message : err);
+    }
+  }
 
   return NextResponse.json({
     ok: true,

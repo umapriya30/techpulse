@@ -4,9 +4,12 @@ import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { useStore } from "@/app/providers";
 import type { Hackathon, NewsArticle, TechEvent } from "@/lib/types";
+import type { Opportunity } from "@/lib/hunt/types";
+import { HUNT_CATEGORY_LABEL } from "@/lib/hunt/types";
 import { NewsCard } from "@/components/news-card";
 import { EventCard } from "@/components/event-card";
 import { HackathonCard } from "@/components/hackathon-card";
+import { OpportunityCard } from "@/components/opportunity-card";
 import { PreferencesPanel } from "@/components/preferences-panel";
 import { EmptyState, ButtonLink } from "@/components/ui";
 import { DeadlineBadge } from "@/components/badges";
@@ -16,10 +19,12 @@ export function Dashboard({
   news,
   events,
   hackathons,
+  opportunities,
 }: {
   news: NewsArticle[];
   events: TechEvent[];
   hackathons: Hackathon[];
+  opportunities: Opportunity[];
 }) {
   const { bookmarks, ready, user, prefs } = useStore();
 
@@ -45,6 +50,9 @@ export function Dashboard({
   const savedHackathons = hackathons.filter((h) =>
     bookmarks.some((b) => b.type === "hackathon" && b.slug === h.slug),
   );
+  const savedOpportunities = opportunities.filter((o) =>
+    bookmarks.some((b) => b.type === "opportunity" && b.slug === o.slug),
+  );
 
   const deadlines = [
     ...savedEvents
@@ -61,6 +69,14 @@ export function Dashboard({
       date: h.registrationDeadline,
       kind: "🏆 Hackathon",
     })),
+    ...savedOpportunities
+      .filter((o) => o.deadline)
+      .map((o) => ({
+        title: o.title,
+        href: `/hunt/${o.type}/${o.slug}`,
+        date: o.deadline as string,
+        kind: `${HUNT_CATEGORY_LABEL[o.type].emoji} ${HUNT_CATEGORY_LABEL[o.type].label}`,
+      })),
   ]
     .filter((d) => daysUntil(d.date) >= 0)
     .sort((a, b) => +new Date(a.date) - +new Date(b.date));
@@ -69,7 +85,8 @@ export function Dashboard({
     .filter((e) => daysUntil(e.endDate) >= 0)
     .sort((a, b) => +new Date(a.startDate) - +new Date(b.startDate));
 
-  const totalSaved = savedNews.length + savedEvents.length + savedHackathons.length;
+  const totalSaved =
+    savedNews.length + savedEvents.length + savedHackathons.length + savedOpportunities.length;
 
   return (
     <div className="container-page py-10">
@@ -80,7 +97,7 @@ export function Dashboard({
         <p className="mt-2 text-text-muted">
           {user ? `Signed in as ${user.name}. ` : ""}
           {totalSaved === 0
-            ? "Save news, events and hackathons to build your personal dashboard."
+            ? "Save news, events, hackathons and Hunt opportunities to build your personal dashboard."
             : `You have ${totalSaved} saved item${totalSaved === 1 ? "" : "s"}.`}
         </p>
       </header>
@@ -160,6 +177,20 @@ export function Dashboard({
             <div className="grid gap-5 sm:grid-cols-2">
               {savedHackathons.map((h) => (
                 <HackathonCard key={h.id} hackathon={h} />
+              ))}
+            </div>
+          </DashSection>
+
+          <DashSection
+            title="Saved from Hunt"
+            empty="No saved opportunities yet."
+            emptyHref="/hunt"
+            emptyCta="Browse Hunt"
+            count={savedOpportunities.length}
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              {savedOpportunities.map((o) => (
+                <OpportunityCard key={o.id} opportunity={o} />
               ))}
             </div>
           </DashSection>

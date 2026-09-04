@@ -5,11 +5,16 @@ import Link from "next/link";
 import {
   CheckCircle2,
   Circle,
+  Loader2,
+  RefreshCw,
   Star,
   Trash2,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import type { Hackathon, NewsArticle, TechEvent } from "@/lib/types";
+import type { Opportunity } from "@/lib/hunt/types";
+import { HUNT_CATEGORY_LABEL } from "@/lib/hunt/types";
 import { formatDateShort } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -23,20 +28,39 @@ interface Metrics {
   topTopics: string[];
 }
 
-type Tab = "news" | "events" | "hackathons" | "submissions";
+export interface AdminDataSource {
+  id: string;
+  name: string;
+  category: string;
+  type: string;
+  enabled: boolean;
+  lastSyncAt: string | null;
+  recordCount: number;
+  errorCount: number;
+  lastError: string | null;
+}
+
+type Tab = "news" | "events" | "hackathons" | "submissions" | "sources" | "review";
 
 export function AdminPanel({
   metrics,
   news,
   events,
   hackathons,
+  sources,
+  needsReview,
 }: {
   metrics: Metrics;
   news: NewsArticle[];
   events: TechEvent[];
   hackathons: Hackathon[];
+  sources: AdminDataSource[];
+  needsReview: Opportunity[];
 }) {
   const [tab, setTab] = useState<Tab>("news");
+  const [sourceRows, setSourceRows] = useState(sources);
+  const [reviewRows, setReviewRows] = useState(needsReview);
+  const [syncing, setSyncing] = useState<string | null>(null); // source name, or "*" for all
   const [rows, setRows] = useState({
     news: news.map((n) => ({ ...n })),
     events: events.map((e) => ({ ...e })),
@@ -84,6 +108,71 @@ export function AdminPanel({
       ),
     }));
     flash("Toggled trending.");
+  }
+
+  async function toggleSource(id: string, enabled: boolean) {
+    setSourceRows((rs) => rs.map((s) => (s.id === id ? { ...s, enabled } : s)));
+    try {
+      await fetch(`/api/admin/sources/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      flash(enabled ? "Source enabled." : "Source disabled.");
+    } catch {
+      flash("Could not update the source.");
+    }
+  }
+
+  async function syncSource(name?: string) {
+    setSyncing(name ?? "*");
+    try {
+      const res = await fetch(
+        `/api/admin/hunt-sync${name ? `?source=${encodeURIComponent(name)}` : ""}`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      const reports: { source: string; stored: number; error?: string }[] = data.reports ?? [];
+      const total = reports.reduce((n, r) => n + r.stored, 0);
+      flash(`Synced — ${total} record${total === 1 ? "" : "s"} stored.`);
+
+      const now = new Date().toISOString();
+      setSourceRows((rs) =>
+        rs.map((s) => {
+          const r = reports.find((x) => x.source === s.name);
+          if (!r) return s;
+          return {
+            ...s,
+            lastSyncAt: now,
+            recordCount: r.stored,
+            errorCount: r.error ? s.errorCount + 1 : 0,
+            lastError: r.error ?? null,
+          };
+        }),
+      );
+
+      const reviewRes = await fetch("/api/admin/opportunities");
+      const reviewData = await reviewRes.json();
+      setReviewRows(reviewData.items ?? []);
+    } catch {
+      flash("Sync failed — check server logs.");
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  async function reviewOpportunity(id: string, action: "approve" | "reject") {
+    setReviewRows((rs) => rs.filter((o) => o.id !== id));
+    try {
+      await fetch(`/api/admin/opportunities/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      flash(action === "approve" ? "Published." : "Rejected.");
+    } catch {
+      flash("Could not update the opportunity.");
+    }
   }
 
   return (
@@ -138,6 +227,8 @@ export function AdminPanel({
             ["events", `Events (${rows.events.length})`],
             ["hackathons", `Hackathons (${rows.hackathons.length})`],
             ["submissions", `Submissions (${submissions.length})`],
+            ["sources", `Data Sources (${sourceRows.length})`],
+            ["review", `Needs Review (${reviewRows.length})`],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
@@ -315,6 +406,121 @@ export function AdminPanel({
             )}
           </Table>
         )}
+
+        {tab === "sources" && (
+          <>
+            <div className="flex items-center justify-between border-b border-border bg-surface-2 px-4 py-2.5">
+              <p className="text-xs text-text-muted">
+                Sources sync automatically once a day. Trigger a run manually below.
+              </p>
+              <button
+                type="button"
+                onClick={() => syncSource()}
+                disabled={syncing !== null}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-2 disabled:opacity-50"
+              >
+                {syncing === "*" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Sync all sources
+              </button>
+            </div>
+            <Table head={["Source", "Category", "Type", "Status", "Last Sync", "Records", "Errors", ""]}>
+            {sourceRows.length === 0 ? (
+              <tr className="border-t border-border">
+                <Td colSpan={8}>
+                  <span className="text-text-muted">
+                    No sources registered yet — click &ldquo;Sync all sources&rdquo; above; the first
+                    run registers Hunt&apos;s manual-awards and manual-volunteering sources
+                    automatically.
+                  </span>
+                </Td>
+              </tr>
+            ) : (
+              sourceRows.map((s) => (
+                <tr key={s.id} className="border-t border-border">
+                  <Td className="font-medium">{s.name}</Td>
+                  <Td className="capitalize">{s.category}</Td>
+                  <Td className="capitalize">{s.type}</Td>
+                  <Td>
+                    <FlagBtn on={s.enabled} onClick={() => toggleSource(s.id, !s.enabled)} onLabel="Active" offLabel="Disabled" />
+                  </Td>
+                  <Td>{s.lastSyncAt ? formatDateShort(s.lastSyncAt) : "Never"}</Td>
+                  <Td>{s.recordCount}</Td>
+                  <Td>
+                    {s.errorCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-danger" title={s.lastError ?? undefined}>
+                        <TriangleAlert className="h-3.5 w-3.5" /> {s.errorCount}
+                      </span>
+                    ) : (
+                      "0"
+                    )}
+                  </Td>
+                  <Td>
+                    <div className="flex justify-end">
+                      <IconBtn
+                        title="Sync now"
+                        onClick={() => syncSource(s.name)}
+                        active={syncing === s.name}
+                      >
+                        {syncing === s.name ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                      </IconBtn>
+                    </div>
+                  </Td>
+                </tr>
+              ))
+            )}
+            </Table>
+          </>
+        )}
+
+        {tab === "review" && (
+          <Table head={["Opportunity", "Category", "Organisation", "Discovered", ""]}>
+            {reviewRows.length === 0 ? (
+              <tr className="border-t border-border">
+                <Td colSpan={5}>
+                  <span className="text-text-muted">Nothing needs review right now.</span>
+                </Td>
+              </tr>
+            ) : (
+              reviewRows.map((o) => (
+                <tr key={o.id} className="border-t border-border">
+                  <Td>
+                    <a
+                      href={o.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium hover:text-brand"
+                    >
+                      {o.title}
+                    </a>
+                  </Td>
+                  <Td>
+                    {HUNT_CATEGORY_LABEL[o.type].emoji} {HUNT_CATEGORY_LABEL[o.type].label}
+                  </Td>
+                  <Td>{o.organisation}</Td>
+                  <Td>{formatDateShort(o.discoveredAt)}</Td>
+                  <Td>
+                    <div className="flex justify-end gap-1">
+                      <IconBtn title="Approve & publish" onClick={() => reviewOpportunity(o.id, "approve")}>
+                        <CheckCircle2 className="h-4 w-4" />
+                      </IconBtn>
+                      <IconBtn title="Reject" danger onClick={() => reviewOpportunity(o.id, "reject")}>
+                        <X className="h-4 w-4" />
+                      </IconBtn>
+                    </div>
+                  </Td>
+                </tr>
+              ))
+            )}
+          </Table>
+        )}
       </div>
 
       {toast && (
@@ -400,7 +606,17 @@ function IconBtn({
   );
 }
 
-function FlagBtn({ on, onClick }: { on: boolean; onClick: () => void }) {
+function FlagBtn({
+  on,
+  onClick,
+  onLabel = "Verified",
+  offLabel = "Unverified",
+}: {
+  on: boolean;
+  onClick: () => void;
+  onLabel?: string;
+  offLabel?: string;
+}) {
   return (
     <button
       type="button"
@@ -411,7 +627,7 @@ function FlagBtn({ on, onClick }: { on: boolean; onClick: () => void }) {
       )}
     >
       {on ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
-      {on ? "Verified" : "Unverified"}
+      {on ? onLabel : offLabel}
     </button>
   );
 }

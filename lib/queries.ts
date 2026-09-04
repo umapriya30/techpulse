@@ -7,6 +7,9 @@ import type {
   SearchResult,
   TechEvent,
 } from "@/lib/types";
+import { queryOpportunities } from "@/lib/hunt/queries";
+import { HUNT_CATEGORY_LABEL } from "@/lib/hunt/types";
+import type { Opportunity } from "@/lib/hunt/types";
 
 /* ----------------------------- News ----------------------------- */
 
@@ -394,12 +397,31 @@ function normaliseTopic(raw: string): string | null {
 export async function globalSearch(qRaw: string): Promise<SearchResult[]> {
   const q = qRaw.trim();
   if (!q) return [];
-  const [news, events, hackathons] = await Promise.all([
+  const [news, events, hackathons, opportunities] = await Promise.all([
     provider.listNews(),
     provider.listEvents(),
     provider.listHackathons(),
+    queryOpportunities({ query: q }).catch((err) => {
+      // Hunt is DB-backed (unlike the rest of TechPulse) — if the database
+      // isn't configured/reachable yet, degrade to search over everything
+      // else rather than breaking search entirely.
+      console.warn("[globalSearch] Hunt query failed, omitting from results:", err instanceof Error ? err.message : err);
+      return [] as Opportunity[];
+    }),
   ]);
   const results: SearchResult[] = [];
+
+  for (const o of opportunities) {
+    results.push({
+      type: "opportunity",
+      id: o.id,
+      slug: o.slug,
+      title: o.title,
+      subtitle: o.description,
+      meta: `${HUNT_CATEGORY_LABEL[o.type].emoji} ${HUNT_CATEGORY_LABEL[o.type].label} · ${o.organisation}`,
+      href: `/hunt/${o.type}/${o.slug}`,
+    });
+  }
 
   for (const n of news) {
     if (matchesText(q, newsText(n))) {
