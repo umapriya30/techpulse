@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     news: results.filter((r) => r.type === "news").length,
     event: results.filter((r) => r.type === "event").length,
     hackathon: results.filter((r) => r.type === "hackathon").length,
+    opportunity: results.filter((r) => r.type === "opportunity").length,
   };
 
   return NextResponse.json({

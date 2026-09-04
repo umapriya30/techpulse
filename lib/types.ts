@@ -261,7 +261,7 @@ export interface Hackathon {
   featured: boolean;
 }
 
-export type ContentType = "news" | "event" | "hackathon";
+export type ContentType = "news" | "event" | "hackathon" | "opportunity";
 
 export interface SearchResult {
   type: ContentType;
@@ -270,6 +270,8 @@ export interface SearchResult {
   title: string;
   subtitle: string;
   meta: string;
+  /** Set when the type doesn't map to a single top-level path (e.g. Hunt categories). */
+  href?: string;
 }
 
 export interface Preferences {

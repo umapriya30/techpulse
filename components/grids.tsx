@@ -1,7 +1,9 @@
 import type { Hackathon, NewsArticle, TechEvent } from "@/lib/types";
+import type { Opportunity } from "@/lib/hunt/types";
 import { NewsCard } from "@/components/news-card";
 import { EventCard } from "@/components/event-card";
 import { HackathonCard } from "@/components/hackathon-card";
+import { OpportunityCard } from "@/components/opportunity-card";
 import { ButtonLink, EmptyState } from "@/components/ui";
 
 const gridCls = "grid gap-5 sm:grid-cols-2 lg:grid-cols-3";
@@ -59,6 +61,24 @@ export function HackathonGrid({ items }: { items: Hackathon[] }) {
     <div className={gridCls}>
       {items.map((h) => (
         <HackathonCard key={h.id} hackathon={h} />
+      ))}
+    </div>
+  );
+}
+
+export function OpportunityGrid({ items }: { items: Opportunity[] }) {
+  if (!items.length)
+    return (
+      <EmptyState
+        title="No opportunities match your filters"
+        description="Try a different category, location or deadline window."
+        action={<ButtonLink href="/hunt" variant="outline">Reset filters</ButtonLink>}
+      />
+    );
+  return (
+    <div className={gridCls}>
+      {items.map((o) => (
+        <OpportunityCard key={o.id} opportunity={o} />
       ))}
     </div>
   );

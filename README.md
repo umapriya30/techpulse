@@ -4,7 +4,7 @@
 
 **Live: https://techpulse-uk.vercel.app**
 
-A UK-focused discovery platform for **tech news**, **tech events** and **AI hackathons** — everything happening in Tech, AI & Data in one place.
+A UK-focused discovery platform for **tech news**, **tech events**, **AI hackathons** and, via **Hunt**, everything else you can apply for, attend, win, volunteer for or speak at.
 
 > If TechCrunch + Eventbrite + Devpost had a UK-focused AI/Data discovery platform.
 
@@ -49,6 +49,7 @@ npm run lint
 | Tech News — list, filters (category / time / source), topic chips, detail pages with JSON-LD | ✅ |
 | Events — list, filters (location / category / type / date / price), detail pages (speakers, schedule, add-to-calendar, Event schema) | ✅ |
 | Hackathons — list, filters (technology / region / deadline / prize / difficulty / team size), detail pages (challenge, prizes, key dates), live deadline countdown | ✅ |
+| **Hunt** — unified opportunity discovery (Awards, Volunteering live; 8 more categories on the roadmap), real ingestion pipeline (source → normalise → dedupe → validate → AI-enrich → store), Postgres-backed, admin Data Sources + Needs Review dashboard | ✅ (Phase 1) |
 | Global search (`/search` + instant dropdown) across all three content types | ✅ |
 | **⌘K command palette** — navigate, jump to topics, run quick filters, live search, switch theme | ✅ |
 | **TechPulse Assistant** — floating chat widget + `POST /api/assistant`; natural-language queries like "hackathons closing this week", "AI events in London next month", "hackathons with £10k+ prize", "latest LLM news" → answers + linked result cards | ✅ |
