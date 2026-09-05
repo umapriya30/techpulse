@@ -41,6 +41,18 @@ const RAW: RawOpportunity[] = [
     eligibility: "Aged 17+, living in the UK. No STEM job required.",
   },
   {
+    title: "Find a volunteering role near you",
+    type: "volunteering",
+    description:
+      "The UK's biggest volunteering database — around a million opportunities from nearly 50,000 charities and community groups, searchable by postcode and interest area.",
+    organisation: "Do-it.life",
+    website: "https://doit.life/",
+    applicationUrl: "https://doit.life/volunteer",
+    sourceUrl: "https://doit.life/volunteer",
+    country: "United Kingdom",
+    eligibility: "Open to anyone in the UK; create a free account to see matched opportunities by location.",
+  },
+  {
     title: "Volunteer to run a Code Club",
     type: "volunteering",
     description:

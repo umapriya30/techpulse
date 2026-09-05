@@ -6,15 +6,15 @@ import { Check, Loader2 } from "lucide-react";
 import { buttonClass } from "@/components/ui";
 import { CATEGORIES, EVENT_TYPES } from "@/lib/types";
 
-type Kind = "event" | "hackathon" | "award" | "volunteering";
-const KINDS: Kind[] = ["event", "hackathon", "award", "volunteering"];
+type Kind = "event" | "hackathon" | "award" | "volunteering" | "speaking";
+const KINDS: Kind[] = ["event", "hackathon", "award", "volunteering", "speaking"];
 
 export function SubmitForm() {
   const params = useSearchParams();
   const requested = params.get("type") as Kind | null;
   const initialKind: Kind = requested && KINDS.includes(requested) ? requested : "event";
   const [kind, setKind] = useState<Kind>(initialKind);
-  const isHunt = kind === "award" || kind === "volunteering";
+  const isHunt = kind === "award" || kind === "volunteering" || kind === "speaking";
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState("");
   const [ref, setRef] = useState("");

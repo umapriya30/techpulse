@@ -290,7 +290,7 @@ export function buildTechPulseTools(bridge: WebMCPBridge): ModelContextTool[] {
         type: "object",
         properties: {
           query: { type: "string", description: "Free-text search." },
-          type: { type: "string", enum: ["award", "volunteering"], description: "Hunt category." },
+          type: { type: "string", enum: ["award", "volunteering", "speaking"], description: "Hunt category." },
           location: { type: "string", description: "City, country, 'remote' or 'hybrid'." },
           deadline: { type: "string", enum: ["soon", "week", "month", "future", "all"] },
           free: { type: "boolean", description: "Only free-to-enter/apply opportunities." },

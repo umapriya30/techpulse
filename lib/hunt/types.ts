@@ -35,7 +35,7 @@ export const HUNT_CATEGORIES: HuntCategory[] = [
 ];
 
 /** Categories with a live UI + at least one adapter in the current phase. */
-export const ACTIVE_HUNT_CATEGORIES: HuntCategory[] = ["award", "volunteering"];
+export const ACTIVE_HUNT_CATEGORIES: HuntCategory[] = ["award", "volunteering", "speaking"];
 
 export const HUNT_CATEGORY_LABEL: Record<HuntCategory, { label: string; emoji: string }> = {
   award: { label: "Awards", emoji: "🏆" },

@@ -4,6 +4,7 @@ import { getLlm } from "@/lib/ai/provider";
 import type { SourceAdapter } from "@/lib/hunt/adapter";
 import { manualAwardsSource } from "@/lib/hunt/sources/manual-awards";
 import { manualVolunteeringSource } from "@/lib/hunt/sources/manual-volunteering";
+import { manualSpeakingSource } from "@/lib/hunt/sources/manual-speaking";
 import { validateOpportunity } from "@/lib/hunt/validate";
 import { findDuplicate, type DedupeCandidate } from "@/lib/hunt/dedupe";
 import type { RawOpportunity } from "@/lib/hunt/types";
@@ -27,7 +28,7 @@ import type { RawOpportunity } from "@/lib/hunt/types";
  * first sync (see the upsert at the end of syncSource()).
  */
 
-const ADAPTERS: SourceAdapter[] = [manualAwardsSource, manualVolunteeringSource];
+const ADAPTERS: SourceAdapter[] = [manualAwardsSource, manualVolunteeringSource, manualSpeakingSource];
 
 export interface SourceSyncReport {
   source: string;

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ingestSingleOpportunity } from "@/lib/hunt/pipeline";
 
 const baseSchema = z.object({
-  kind: z.enum(["event", "hackathon", "award", "volunteering"]),
+  kind: z.enum(["event", "hackathon", "award", "volunteering", "speaking"]),
   name: z.string().min(3, "Name is too short."),
   organizer: z.string().min(2, "Organiser is required."),
   description: z.string().min(20, "Please add a longer description."),
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
   // Hunt kinds also run through the real ingestion pipeline (validate ->
   // AI-enrich -> store as needs_review) so they actually land in the admin
   // "Needs Review" queue, never auto-published — per spec §25.
-  if (parsed.data.kind === "award" || parsed.data.kind === "volunteering") {
+  if (parsed.data.kind === "award" || parsed.data.kind === "volunteering" || parsed.data.kind === "speaking") {
     try {
       await ingestSingleOpportunity(
         {

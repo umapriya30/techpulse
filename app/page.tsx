@@ -11,14 +11,20 @@ import { TrendingTech } from "@/components/trending-tech";
 import { Newsletter } from "@/components/newsletter";
 import { StatBand } from "@/components/stat-band";
 import { closingSoon, queryEvents, queryHackathons, queryNews } from "@/lib/queries";
+import { queryOpportunities } from "@/lib/hunt/queries";
+import { ACTIVE_HUNT_CATEGORIES } from "@/lib/hunt/types";
+import { OpportunityGrid } from "@/components/grids";
 
 export default async function HomePage() {
-  const [trending, moreNews, events, hackathons, closing] = await Promise.all([
+  const [trending, moreNews, events, hackathons, closing, opportunities] = await Promise.all([
     queryNews({ trendingOnly: true }),
     queryNews(),
     queryEvents({ upcomingOnly: true }),
     queryHackathons({ openOnly: true }),
     closingSoon(7),
+    // Hunt is DB-backed (unlike everything else on this page) — degrade to
+    // an empty teaser rather than breaking the homepage if it's unreachable.
+    queryOpportunities({ type: ACTIVE_HUNT_CATEGORIES }).catch(() => []),
   ]);
 
   const trendingStories = trending.slice(0, 5);
@@ -114,6 +120,30 @@ export default async function HomePage() {
             <HackathonCard key={h.id} hackathon={h} />
           ))}
         </div>
+      </section>
+
+      {/* Hunt */}
+      <section className="container-page py-12">
+        <SectionHeading
+          eyebrow="🎯 Hunt"
+          title="What can you apply for, win or volunteer for?"
+          action={
+            <Link
+              href="/hunt"
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+            >
+              Explore Hunt <ArrowRight className="h-4 w-4" />
+            </Link>
+          }
+        />
+        {opportunities.length ? (
+          <OpportunityGrid items={opportunities.slice(0, 3)} />
+        ) : (
+          <p className="text-sm text-text-muted">
+            Awards and volunteering opportunities are syncing — check back shortly, or
+            visit <Link href="/hunt" className="text-brand hover:underline">Hunt</Link> directly.
+          </p>
+        )}
       </section>
 
       <ClosingSoon />
