@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { queryOpportunities } from "@/lib/hunt/queries";
 import { trendingTopics } from "@/lib/queries";
-import { cn, daysUntil } from "@/lib/utils";
-import { ACTIVE_HUNT_CATEGORIES, HUNT_CATEGORIES, HUNT_CATEGORY_LABEL } from "@/lib/hunt/types";
+import { daysUntil } from "@/lib/utils";
+import { ACTIVE_HUNT_CATEGORIES, HUNT_CATEGORY_LABEL } from "@/lib/hunt/types";
 import { OpportunityGrid } from "@/components/grids";
 import { SectionHeading, ButtonLink, EmptyState } from "@/components/ui";
 import { HuntRecommended } from "@/components/hunt-recommended";
@@ -56,23 +56,17 @@ export default async function HuntPage() {
         </p>
       </header>
 
+      {/* Only categories with real data get a chip — no "Coming soon" clutter. */}
       <nav className="mb-10 flex flex-wrap gap-2" aria-label="Hunt categories">
-        {HUNT_CATEGORIES.map((c) => {
+        {ACTIVE_HUNT_CATEGORIES.map((c) => {
           const meta = HUNT_CATEGORY_LABEL[c];
-          const active = ACTIVE_HUNT_CATEGORIES.includes(c);
           return (
             <Link
               key={c}
               href={`/hunt/${c}`}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                active
-                  ? "border-brand bg-brand/10 text-brand"
-                  : "border-border text-text-muted hover:text-text",
-              )}
+              className="rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand/15"
             >
               {meta.emoji} {meta.label}
-              {!active && <span className="ml-1 text-xs">· Coming soon</span>}
             </Link>
           );
         })}
