@@ -5,6 +5,10 @@ import type { SourceAdapter } from "@/lib/hunt/adapter";
 import { manualAwardsSource } from "@/lib/hunt/sources/manual-awards";
 import { manualVolunteeringSource } from "@/lib/hunt/sources/manual-volunteering";
 import { manualSpeakingSource } from "@/lib/hunt/sources/manual-speaking";
+import { manualJudgingSource } from "@/lib/hunt/sources/manual-judging";
+import { manualMentoringSource } from "@/lib/hunt/sources/manual-mentoring";
+import { manualGrantsSource } from "@/lib/hunt/sources/manual-grants";
+import { manualCompetitionsSource } from "@/lib/hunt/sources/manual-competitions";
 import { validateOpportunity } from "@/lib/hunt/validate";
 import { findDuplicate, type DedupeCandidate } from "@/lib/hunt/dedupe";
 import type { RawOpportunity } from "@/lib/hunt/types";
@@ -28,7 +32,15 @@ import type { RawOpportunity } from "@/lib/hunt/types";
  * first sync (see the upsert at the end of syncSource()).
  */
 
-const ADAPTERS: SourceAdapter[] = [manualAwardsSource, manualVolunteeringSource, manualSpeakingSource];
+const ADAPTERS: SourceAdapter[] = [
+  manualAwardsSource,
+  manualVolunteeringSource,
+  manualSpeakingSource,
+  manualJudgingSource,
+  manualMentoringSource,
+  manualGrantsSource,
+  manualCompetitionsSource,
+];
 
 export interface SourceSyncReport {
   source: string;

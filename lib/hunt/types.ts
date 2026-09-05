@@ -33,7 +33,18 @@ export const HUNT_CATEGORIES: HuntCategory[] = [
 ];
 
 /** Categories with a live UI + at least one adapter in the current phase. */
-export const ACTIVE_HUNT_CATEGORIES: HuntCategory[] = ["award", "volunteering", "speaking"];
+export const ACTIVE_HUNT_CATEGORIES: HuntCategory[] = [
+  "award",
+  "volunteering",
+  "speaking",
+  "judging",
+  "mentoring",
+  "grant",
+  "competition",
+];
+// "launch" (Product Launches) stays roadmap-only: unlike the categories
+// above, a single static entry goes stale immediately — it needs an actual
+// feed (RSS/official blogs/user submissions) to be honest, not a snapshot.
 
 export const HUNT_CATEGORY_LABEL: Record<HuntCategory, { label: string; emoji: string }> = {
   award: { label: "Awards", emoji: "🏆" },
