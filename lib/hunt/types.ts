@@ -5,17 +5,17 @@
 import type { Category } from "@/lib/types";
 
 /**
- * Every category Hunt is meant to eventually cover. Only "award" and
- * "volunteering" have adapters wired up in Phase 1 — the rest are reserved so
- * the schema, UI and pipeline never need to change shape when they're added.
+ * Every category Hunt covers. Hackathons and Events are deliberately NOT
+ * here — TechPulse already has full, dedicated /hackathons and /events
+ * sections; listing them again inside Hunt as "coming soon" placeholders
+ * would just duplicate/confuse existing, working nav. Hunt only covers the
+ * pillars that don't already have a home elsewhere in the app.
  */
 export type HuntCategory =
   | "award"
   | "volunteering"
-  | "launch" // Launch Radar (Phase 2)
-  | "hackathon" // reserved: TechPulse's existing /hackathons stays the source of truth for now
-  | "event" // reserved: ditto for /events
   | "speaking"
+  | "launch" // Launch Radar (Phase 2)
   | "judging"
   | "mentoring"
   | "competition"
@@ -23,11 +23,9 @@ export type HuntCategory =
 
 export const HUNT_CATEGORIES: HuntCategory[] = [
   "award",
-  "launch",
-  "hackathon",
-  "event",
   "volunteering",
   "speaking",
+  "launch",
   "judging",
   "mentoring",
   "competition",
@@ -39,11 +37,9 @@ export const ACTIVE_HUNT_CATEGORIES: HuntCategory[] = ["award", "volunteering", 
 
 export const HUNT_CATEGORY_LABEL: Record<HuntCategory, { label: string; emoji: string }> = {
   award: { label: "Awards", emoji: "🏆" },
-  launch: { label: "Product Launches", emoji: "🚀" },
-  hackathon: { label: "Hackathons", emoji: "💻" },
-  event: { label: "Events", emoji: "🎤" },
   volunteering: { label: "Volunteering", emoji: "🤝" },
   speaking: { label: "Speaking Opportunities", emoji: "🎙" },
+  launch: { label: "Product Launches", emoji: "🚀" },
   judging: { label: "Judging Opportunities", emoji: "🧑‍⚖️" },
   mentoring: { label: "Mentoring Opportunities", emoji: "🧑‍🏫" },
   competition: { label: "Startup Competitions", emoji: "💡" },
