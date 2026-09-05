@@ -149,7 +149,7 @@ footer carries a full "independent tool, not affiliated" disclaimer.
 | `/news`, `/news/[slug]` | News listing (filters: category/topic/format/trending/time) + detail. |
 | `/events`, `/events/[slug]` | Events listing (filters: category/type/location/format/date/price) + detail. |
 | `/hackathons`, `/hackathons/[slug]` | Hackathons listing (filters: technology/region/mode/deadline/prize) + detail. |
-| `/hunt`, `/hunt/[category]`, `/hunt/[category]/[slug]` | Unified opportunity discovery — awards, volunteering (live categories) plus 8 more on the roadmap. See §11. |
+| `/hunt`, `/hunt/[category]`, `/hunt/[category]/[slug]` | Unified opportunity discovery — Awards, Volunteering, Speaking/CFP, Judging, Mentoring, Grants and Startup Competitions are live; Product Launches is roadmap-only. See §11. |
 | `/search` | Global search across all four content types (news/events/hackathons/Hunt). |
 | `/saved` | The current browser's bookmarked items, including Hunt opportunities. |
 | `/submit` | Community submission form (event/hackathon/award/volunteering suggestions). |
@@ -327,9 +327,9 @@ real, not simulated.
 
 | File | Role |
 |---|---|
-| `types.ts` | `HuntCategory` (10 values; `ACTIVE_HUNT_CATEGORIES` = `["award","volunteering"]` today), `HUNT_CATEGORY_LABEL`, `RawOpportunity` (adapter-facing) and `Opportunity` (normalised, mirrors the Prisma model) interfaces. |
+| `types.ts` | `HuntCategory` (8 values — Hackathons/Events deliberately excluded since they have their own sections; `ACTIVE_HUNT_CATEGORIES` = everything except `launch`), `HUNT_CATEGORY_LABEL`, `RawOpportunity` (adapter-facing) and `Opportunity` (normalised, mirrors the Prisma model) interfaces. |
 | `adapter.ts` | `SourceAdapter` interface (`name`, `category`, `type`, `enabled`, `fetch/normalize/validate/getSourceUrl`) — every source, in any category, implements this. |
-| `sources/manual-awards.ts`, `sources/manual-volunteering.ts` | Phase-1 adapters: a small list of real organisations/programmes, each hand-verified against its official page (URLs, and dates where the official site stated one — never guessed). `sourceType: "manual"`. |
+| `sources/manual-*.ts` | One adapter per live category (awards, volunteering, speaking, judging, mentoring, grants, competitions): a small list of real organisations/programmes, each hand-verified against its official page (URLs, and dates where the official site stated one — never guessed; closed cycles are shown honestly as "Closed", not misrepresented as open). `sourceType: "manual"`. |
 | `validate.ts` | Required-field/URL/date sanity checks — failures route to `needs_review`, never silently dropped or auto-published. |
 | `dedupe.ts` | Exact/normalised source-URL match → organisation+title similarity → title-only similarity (Jaccard over tokens). The first-seen record wins; repeats are skipped. |
 | `pipeline.ts` | `runHuntSync(onlySource?)` — orchestrates fetch → normalise → dedupe → validate → AI-enrich → upsert per adapter, and updates that adapter's `DataSource` row. `ingestSingleOpportunity()` — the single-item path for admin manual-adds and accepted user submissions. |
